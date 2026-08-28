@@ -1,6 +1,6 @@
 import mcpi.block
 
-from notecraft.core.core import Cell
+from funcraft.core.core import Cell
 
 
 class Wall(Cell):

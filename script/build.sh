@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-name=notecraft
+name=funcraft
 echo $name
 
 if [ "$1" = "build" ]; then

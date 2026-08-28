@@ -13,7 +13,7 @@ p = mc.entity.getTilePos(mc.getPlayerEntityId(BUILDER_NAME))
 
 
 def t1():
-    from notecraft.core.things import River, Wall
+    from funcraft.core.things import River, Wall
     print(p)
     Wall(mc=mc, pos=p).build()
 
