@@ -14,7 +14,6 @@ p = mc.entity.getTilePos(mc.getPlayerEntityId(BUILDER_NAME))
 
 def t1():
     from funcraft.core.things import River, Wall
-    print(p)
     Wall(mc=mc, pos=p).build()
 
     River(mc=mc, pos=p).build()
@@ -41,8 +40,6 @@ def t2():
     for line in data_pd.values:
 
         mc.setBlock(line[0], line[1], line[2], mcpi.block.BRICK_BLOCK.id)
-        if num % 1000 == 0:
-            print(num, line)
         if num > 1000000:
             break
 

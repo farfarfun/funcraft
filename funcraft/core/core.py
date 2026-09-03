@@ -3,121 +3,178 @@ from mcpi.block import Block
 from mcpi.minecraft import Minecraft
 from mcpi.vec3 import Vec3
 
+from funcraft.exceptions import CellBuildNotImplementedError
+
 
 class MineCraftConn:
-    """The main class to interact with a running instance of Minecraft Pi."""
+    """封装一个正在运行的 Minecraft Pi 服务器连接，提供中文语义的方法名。"""
 
-    def __init__(self, mc: Minecraft = None):
+    def __init__(self, mc: Minecraft | None = None):
+        """初始化连接。
+
+        Args:
+            mc: 已建立的 `mcpi.minecraft.Minecraft` 实例；为空时调用
+                `Minecraft.create()` 使用默认地址/端口新建一个。
+        """
         self.mc = mc or Minecraft.create()
 
-    def get_block(self, x, y, z) -> int:
-        """Get block (x,y,z) => id:int"""
+    def get_block(self, x: int, y: int, z: int) -> int:
+        """读取指定坐标处的方块 id。"""
         return self.mc.getBlocks(x, y, z)
 
-    def get_block_with_data(self, x, y, z) -> Block:
-        """Get block with data (x,y,z) => Block"""
+    def get_block_with_data(self, x: int, y: int, z: int) -> Block:
+        """读取指定坐标处的方块，附带 data（朝向/变种等附加信息）。"""
         return self.mc.getBlockWithData(x, y, z)
 
-    def get_blocks(self, x0, y0, z0, x1, y1, z1) -> dict:
-        """Get a cuboid of blocks (x0,y0,z0,x1,y1,z1) => [id:int]"""
+    def get_blocks(
+        self, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int
+    ) -> dict:
+        """读取一个立方体区域内的方块 id 列表。"""
         return self.mc.getBlocks(x0, y0, z0, x1, y1, z1)
 
-    def set_block(self, x, y, z, id, data=None):
-        """Set block (x,y,z,id,[data])"""
+    def set_block(
+        self, x: int, y: int, z: int, id: int, data: int | None = None
+    ) -> None:
+        """在指定坐标放置一个方块。"""
         return self.mc.setBlock(x, y, z, id, data)
 
-    def set_block_vec(self, pos: Vec3, id):
+    def set_block_vec(self, pos: Vec3, id: int) -> None:
+        """按 `Vec3` 坐标放置一个方块。"""
         return self.set_block(pos.x, pos.y, pos.z, id)
 
-    def set_blocks(self, x0, y0, z0, x1, y1, z1, id):
-        """Set a cuboid of blocks (x0,y0,z0,x1,y1,z1,id,[data])"""
+    def set_blocks(
+        self, x0: int, y0: int, z0: int, x1: int, y1: int, z1: int, id: int
+    ) -> None:
+        """将一个立方体区域内的方块全部设置为同一 id。"""
         return self.mc.setBlocks(x0, y0, z0, x1, y1, z1, id)
 
-    def set_blocks_vec(self, start: Vec3, end: Vec3, id):
+    def set_blocks_vec(self, start: Vec3, end: Vec3, id: int) -> None:
+        """按两个 `Vec3` 坐标构成的立方体区域批量设置方块。"""
         return self.set_blocks(start.x, start.y, start.z, end.x, end.x, end.z, id)
 
-    def set_sign(self, x, y, z, id, data, line1=None, line2=None, line3=None, line4=None):
-        """Set a sign (x,y,z,id,data,[line1,line2,line3,line4])
+    def set_sign(
+        self,
+        x: int,
+        y: int,
+        z: int,
+        id: int,
+        data: int,
+        line1: str | None = None,
+        line2: str | None = None,
+        line3: str | None = None,
+        line4: str | None = None,
+    ) -> None:
+        """放置一个告示牌（最多 4 行文字）。
 
-        Wall signs (id=68) require data for facing direction 2=north, 3=south, 4=west, 5=east
-        Standing signs (id=63) require data for facing rotation (0-15) 0=south, 4=west, 8=north, 12=east
-        @author: Tim Cummings https://www.triptera.com.au/wordpress/"""
+        挂墙告示牌（id=68）的 data 表示朝向：2=北，3=南，4=西，5=东；
+        立式告示牌（id=63）的 data 表示旋转角度（0-15）：0=南，4=西，8=北，12=东。
+
+        致谢：Tim Cummings <https://www.triptera.com.au/wordpress/>
+        """
         return self.mc.setSign(x, y, z, id, data, [line1, line2, line3, line4])
 
-    def spawn_entity(self, x, y, z, id) -> int:
-        """Spawn entity (x,y,z,id)"""
+    def spawn_entity(self, x: int, y: int, z: int, id: int) -> int:
+        """在指定坐标生成一个实体，返回实体 id。"""
         return self.mc.spawnEntity(x, y, z, id)
 
-    def get_height(self, x, z) -> int:
-        """Get the height of the world (x,z) => int"""
+    def get_height(self, x: int, z: int) -> int:
+        """获取 (x, z) 处地形的高度。"""
         return self.mc.getHeight(x, z)
 
     def get_player_entity_ids(self) -> list:
-        """Get the entity ids of the connected players => [id:int]"""
+        """获取所有已连接玩家的实体 id 列表。"""
         return self.mc.getPlayerEntityIds()
 
-    def get_player_entity_id(self, name) -> int:
-        """Get the entity id of the named player => [id:int]"""
+    def get_player_entity_id(self, name: str) -> int:
+        """根据玩家名获取其实体 id。"""
         return self.mc.getPlayerEntityId(name)
 
-    def save_checkpoint(self):
-        """Save a checkpoint that can be used for restoring the world"""
+    def save_checkpoint(self) -> None:
+        """保存一个检查点，供后续 `restore_checkpoint()` 恢复世界状态。"""
         return self.mc.saveCheckpoint()
 
-    def restore_checkpoint(self):
-        """Restore the world state to the checkpoint"""
+    def restore_checkpoint(self) -> None:
+        """将世界状态恢复到上一次 `save_checkpoint()` 保存的检查点。"""
         return self.mc.restoreCheckpoint()
 
-    def post_to_chat(self, msg):
-        """Post a message to the game chat"""
+    def post_to_chat(self, msg: str) -> None:
+        """向游戏聊天频道发送一条消息。"""
         return self.mc.postToChat(msg)
 
-    def setting(self, setting, status):
-        """Set a world setting (setting, status). keys: world_immutable, nametags_visible"""
+    def setting(self, setting: str, status: bool) -> None:
+        """设置世界参数，例如 `world_immutable`、`nametags_visible`。"""
         return self.mc.setting(setting, status)
 
-    def get_entity_types(self):
-        """Return a list of Entity objects representing all the entity types in Minecraft"""
+    def get_entity_types(self) -> list:
+        """获取 Minecraft 中所有实体类型的列表。"""
         return self.mc.getEntityTypes()
 
-    def get_entities(self, typeId=-1):
-        """Return a list of all currently loaded entities (EntityType:int) => [[entityId:int,entityTypeId:int,entityTypeName:str,posX:float,posY:float,posZ:float]]"""
+    def get_entities(self, typeId: int = -1) -> list:
+        """获取当前已加载的实体列表，可按 `typeId` 过滤。
+
+        返回值形如
+        `[[entityId, entityTypeId, entityTypeName, posX, posY, posZ], ...]`。
+        """
         return self.mc.getEntities(typeId)
 
-    def remove_entity(self, id):
-        """Remove entity by id (entityId:int) => (removedEntitiesCount:int)"""
+    def remove_entity(self, id: int) -> int:
+        """按实体 id 移除单个实体，返回被移除的实体数量。"""
         return self.mc.removeEntity(id)
 
-    def remove_entities(self, typeId=-1):
-        """Remove entities all currently loaded Entities by type (typeId:int) => (removedEntitiesCount:int)"""
+    def remove_entities(self, typeId: int = -1) -> int:
+        """按类型批量移除已加载的实体，返回被移除的实体数量。"""
         return self.mc.removeEntities(typeId)
 
     @staticmethod
-    def create(address="localhost", port=4711):
+    def create(address: str = "localhost", port: int = 4711) -> "MineCraftConn":
+        """按地址、端口新建一个连接。"""
         return MineCraftConn(Minecraft.create(address, port))
 
 
 class Cell:
-    conn = MineCraftConn.create()
+    """一个可建造的最小单元，支持嵌套子节点并统一触发建造。
 
-    def __init__(self, mc: Minecraft = None, pos=None, block=mcpi.block.WOOD, msg='cell'):
+    子类需要实现 `_build()` 完成实际的建造逻辑；`build()` 会先调用
+    `_build()`，再递归建造所有子节点，最后向聊天频道播报建造成功。
+    """
+
+    conn: MineCraftConn = MineCraftConn.create()
+
+    def __init__(
+        self,
+        mc: Minecraft | None = None,
+        pos: Vec3 | None = None,
+        block: Block = mcpi.block.WOOD,
+        msg: str = "cell",
+    ):
+        """初始化建造单元。
+
+        Args:
+            mc: 已建立的 `Minecraft` 连接；提供时会覆盖类级别共用的 `conn`。
+            pos: 建造起始坐标。
+            block: 使用的方块类型，默认木头。
+            msg: 建造完成后播报到聊天频道的消息内容。
+        """
         if mc is not None:
             Cell.conn = MineCraftConn(mc) or MineCraftConn.create()
 
-        self._children = []
+        self._children: list[Cell] = []
         self.pos = pos
         self.block = block
         self.msg = msg
 
-    def add_child(self, child):
+    def add_child(self, child: "Cell") -> None:
+        """添加一个子建造单元，会在 `build()` 时一并建造。"""
         self._children.append(child)
 
-    def build(self, *args, **kwargs):
+    def build(self, *args, **kwargs) -> None:
+        """建造当前单元及其所有子节点，完成后播报成功消息。"""
         self._build(*args, **kwargs)
         for node in self._children:
             if isinstance(node, Cell):
                 node.build()
-        self.conn.post_to_chat("build {} success!".format(self.msg))
+        self.conn.post_to_chat(f"build {self.msg} success!")
 
-    def _build(self, *args, **kwargs):
-        raise Exception('Not implement yet!')
+    def _build(self, *args, **kwargs) -> None:
+        """实际建造逻辑，需由子类实现。"""
+        raise CellBuildNotImplementedError(self)

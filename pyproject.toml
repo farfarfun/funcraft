@@ -8,7 +8,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "牛哥", email = "farfarfun@qq.com" }]
 dependencies = [
-    "mcpi",
+    "mcpi>=1.2.0",
 ]
 
 [build-system]
@@ -20,3 +20,9 @@ packages = ["funcraft"]
 
 [dependency-groups]
 dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+# 只收集 tests/ 下的用例；否则 pytest 默认的 `*_test.py` 匹配规则会连
+# example/ply_test.py（作者本机一次性实验脚本，依赖未声明的 numpy/plyfile
+# 且硬编码本机路径，不可运行）一起收集进来，导致测试直接报 collection error。
+testpaths = ["tests"]
