@@ -36,6 +36,7 @@ def core(mock_mc):
     with patch("mcpi.minecraft.Minecraft.create", return_value=mock_mc):
         import funcraft.core.core as core_module
         import funcraft.core.things as things_module
+
         yield core_module, things_module
     for name in ("funcraft.core.things", "funcraft.core.core"):
         sys.modules.pop(name, None)
@@ -119,20 +120,24 @@ def test_wall_build_sets_expected_cuboid(core, mock_mc):
     )
 
 
-def test_line_construction_hits_preexisting_attribute_error(core):
-    """记录一个既有源码问题（不在本次审计范围内，不修复）：
+def test_line_constructs_and_builds(core, mock_mc):
+    """Line 应按厚度设置高度，并能正常建造。"""
+    from mcpi.vec3 import Vec3
 
-    `Line.__init__` 在调用 `super().__init__()`（即 `Wall.__init__`，真正
-    设置 `self.width` 的地方）之前就读取 `self.width`
-    （`kwargs['height'] = self.width`），因此构造任意 `Line` 实例都会立即
-    抛出 `AttributeError: 'Line' object has no attribute 'width'`。
-    这里如实记录该行为，而不是伪造一个「正常构造成功」的假通过用例。
-    """
     _, things_module = core
     Line = things_module.Line
+    line = Line(pos=Vec3(0, 0, 0), length=5, width=2)
+    assert line.height == 2
+    line.build()
+    mock_mc.setBlocks.assert_called_once_with(0, 0, 0, 4, 1, 1, line.block.id)
 
-    with pytest.raises(AttributeError):
-        Line(length=5, width=1)
+
+def test_set_blocks_vec_preserves_end_y(core, mock_mc):
+    from mcpi.vec3 import Vec3
+
+    core_module, _ = core
+    core_module.MineCraftConn(mock_mc).set_blocks_vec(Vec3(1, 2, 3), Vec3(4, 5, 6), 7)
+    mock_mc.setBlocks.assert_called_once_with(1, 2, 3, 4, 5, 6, 7)
 
 
 def test_river_uses_negative_depth_and_water_block(core):

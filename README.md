@@ -11,7 +11,7 @@ Minecraft Pi Edition（`mcpi`）的 Python 编程接口封装，用来通过代�
 ```bash
 git clone https://github.com/farfarfun/funcraft.git
 cd funcraft
-pip install .
+uv sync
 ```
 
 ## 用法示例
@@ -21,18 +21,22 @@ from funcraft.core.core import MineCraftConn, Cell
 
 # 连接本地运行的 Minecraft Pi 服务器（默认 localhost:4711）
 conn = MineCraftConn.create()
-conn.set_block(0, 0, 0, id=1)       # 放置一个方块
+conn.set_block(0, 0, 0, id=1)  # 放置一个方块
 conn.post_to_chat("hello from funcraft")
 ```
 
 `funcraft/core/things.py` 基于 `Cell` 封装了几个现成的建筑构件：
 
 ```python
+from mcpi.vec3 import Vec3
 from funcraft.core.things import Wall, River
 
+p = Vec3(0, 0, 0)
 Wall(pos=p, length=10, height=5).build()
 River(pos=p, length=10, depth=3).build()
 ```
+
+使用 `uv run` 执行脚本或测试，例如 `uv run pytest`。
 
 ## 说明
 
