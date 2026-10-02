@@ -38,10 +38,6 @@ River(pos=p, length=10, depth=3).build()
 
 使用 `uv run` 执行脚本或测试，例如 `uv run pytest`。
 
-## 说明
-
-`example/` 目录下的 `ply_test.py` 是作者本人的一次性点云数据处理实验，未包含在发行包中，目前也没有维护。
-
 ---
 
 ## 关于 farfarfun

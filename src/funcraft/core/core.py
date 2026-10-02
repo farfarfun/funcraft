@@ -30,7 +30,7 @@ class MineCraftConn:
         Returns:
             方块 id。
         """
-        return self.mc.getBlocks(x, y, z)
+        return self.mc.getBlock(x, y, z)
 
     def get_block_with_data(self, x: int, y: int, z: int) -> Block:
         """读取指定坐标处的方块及其附加数据。
@@ -55,7 +55,9 @@ class MineCraftConn:
         Returns:
             按 Minecraft 协议顺序排列的方块 id 列表。
         """
-        return self.mc.getBlocks(x0, y0, z0, x1, y1, z1)
+        # mcpi 的 getBlocks 返回的是一次性的 map 迭代器，这里固化成 list，
+        # 既对齐返回类型标注，也避免调用方第二次遍历时拿到空结果。
+        return list(self.mc.getBlocks(x0, y0, z0, x1, y1, z1))
 
     def set_block(
         self, x: int, y: int, z: int, id: int, data: int | None = None
@@ -65,10 +67,14 @@ class MineCraftConn:
         Args:
             x, y, z: 方块坐标。
             id: 方块 id。
-            data: 可选的方块附加数据。
+            data: 可选的方块附加数据；为 `None` 时不下发该参数。
         Returns:
             无返回值。
         """
+        # mcpi 会对所有位置参数做 int(math.floor(...))，把 data=None 透传下去
+        # 会直接抛 TypeError，所以只在显式给出 data 时才附带这个参数。
+        if data is None:
+            return self.mc.setBlock(x, y, z, id)
         return self.mc.setBlock(x, y, z, id, data)
 
     def set_block_vec(self, pos: Vec3, id: int) -> None:
@@ -135,7 +141,15 @@ class MineCraftConn:
 
         致谢：Tim Cummings <https://www.triptera.com.au/wordpress/>
         """
-        return self.mc.setSign(x, y, z, id, data, [line1, line2, line3, line4])
+        # mcpi 会对告示牌文字逐个调用 str.replace，把未填写的 None 透传下去
+        # 会抛 AttributeError。这里先去掉末尾未填写的行，再把中间空缺的行
+        # 补成空串，从而保留调用方指定的行号位置。
+        lines: list[str | None] = [line1, line2, line3, line4]
+        while lines and lines[-1] is None:
+            lines.pop()
+        return self.mc.setSign(
+            x, y, z, id, data, ["" if line is None else line for line in lines]
+        )
 
     def spawn_entity(self, x: int, y: int, z: int, id: int) -> int:
         """在指定坐标生成一个实体。

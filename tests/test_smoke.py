@@ -52,7 +52,14 @@ def test_mineCraftConn_set_block_delegates(core, mock_mc):
     core_module, _ = core
     conn = core_module.MineCraftConn(mock_mc)
     conn.set_block(1, 2, 3, 4)
-    mock_mc.setBlock.assert_called_once_with(1, 2, 3, 4, None)
+    mock_mc.setBlock.assert_called_once_with(1, 2, 3, 4)
+
+
+def test_mineCraftConn_set_block_with_data_delegates(core, mock_mc):
+    core_module, _ = core
+    conn = core_module.MineCraftConn(mock_mc)
+    conn.set_block(1, 2, 3, 4, 5)
+    mock_mc.setBlock.assert_called_once_with(1, 2, 3, 4, 5)
 
 
 def test_mineCraftConn_set_block_vec_delegates(core, mock_mc):
@@ -61,7 +68,7 @@ def test_mineCraftConn_set_block_vec_delegates(core, mock_mc):
     core_module, _ = core
     conn = core_module.MineCraftConn(mock_mc)
     conn.set_block_vec(Vec3(1, 2, 3), 5)
-    mock_mc.setBlock.assert_called_once_with(1, 2, 3, 5, None)
+    mock_mc.setBlock.assert_called_once_with(1, 2, 3, 5)
 
 
 def test_mineCraftConn_get_player_entity_id(core, mock_mc):
@@ -75,11 +82,9 @@ def test_mineCraftConn_get_player_entity_id(core, mock_mc):
 @pytest.mark.parametrize(
     ("method", "args", "mc_method", "expected"),
     [
-        ("get_block", (1, 2, 3), "getBlocks", 1),
+        ("get_block", (1, 2, 3), "getBlock", 1),
         ("get_block_with_data", (1, 2, 3), "getBlockWithData", "block"),
-        ("get_blocks", (1, 2, 3, 4, 5, 6), "getBlocks", [1, 2]),
         ("set_blocks", (1, 2, 3, 4, 5, 6, 7), "setBlocks", None),
-        ("set_sign", (1, 2, 3, 68, 2, "a", "b", None, None), "setSign", None),
         ("spawn_entity", (1, 2, 3, 4), "spawnEntity", 9),
         ("get_height", (1, 3), "getHeight", 8),
         ("get_player_entity_ids", (), "getPlayerEntityIds", [7, 8]),
@@ -101,12 +106,98 @@ def test_minecraft_conn_delegates(core, mock_mc, method, args, mc_method, expect
     result = getattr(core_module.MineCraftConn(mock_mc), method)(*args)
 
     expected_args = args
-    if method == "set_sign":
-        expected_args = (*args[:5], list(args[5:]))
-    elif method in {"get_entities", "remove_entities"}:
+    if method in {"get_entities", "remove_entities"}:
         expected_args = (-1,)
     delegate.assert_called_once_with(*expected_args)
     assert result == expected
+
+
+@pytest.fixture
+def real_mc():
+    """用假 socket 连接构造真实的 `mcpi.minecraft.Minecraft`。
+
+    和 `mock_mc` 不同，这里走的是 mcpi 真实的参数编排逻辑（`intFloor`、
+    `flatten`、告示牌文字的 `str.replace`），所以能发现「传了 `None` 下去
+    导致 mcpi 内部抛异常」这类只在真实调用时才暴露的缺陷。
+    """
+    from mcpi.minecraft import Minecraft
+
+    connection = MagicMock(name="Connection")
+    return Minecraft(connection), connection
+
+
+def test_set_block_without_data_does_not_pass_none_to_mcpi(core, real_mc):
+    """`set_block` 不显式给 data 时必须省略该参数（mcpi 会对它做 int(floor())）。"""
+    core_module, _ = core
+    mc, connection = real_mc
+
+    core_module.MineCraftConn(mc).set_block(0, 1, 2, 5)
+
+    connection.send.assert_called_once_with(b"world.setBlock", [0, 1, 2, 5])
+
+
+def test_set_block_with_data_passes_data_to_mcpi(core, real_mc):
+    core_module, _ = core
+    mc, connection = real_mc
+
+    core_module.MineCraftConn(mc).set_block(0, 1, 2, 5, 3)
+
+    connection.send.assert_called_once_with(b"world.setBlock", [0, 1, 2, 5, 3])
+
+
+def test_set_sign_omits_unfilled_trailing_lines(core, real_mc):
+    """只填前两行时，后两行不能以 `None` 形式传进 mcpi。"""
+    core_module, _ = core
+    mc, connection = real_mc
+
+    core_module.MineCraftConn(mc).set_sign(1, 2, 3, 68, 2, "第一行", "第二行")
+
+    connection.send.assert_called_once_with(
+        b"world.setSign", [1, 2, 3, 68, 2, "第一行", "第二行"]
+    )
+
+
+def test_set_sign_keeps_line_positions_when_middle_line_missing(core, real_mc):
+    """中间行留空时补成空串，保证后面的文字仍落在原来的行号上。"""
+    core_module, _ = core
+    mc, connection = real_mc
+
+    core_module.MineCraftConn(mc).set_sign(1, 2, 3, 63, 0, "第一行", None, "第三行")
+
+    connection.send.assert_called_once_with(
+        b"world.setSign", [1, 2, 3, 63, 0, "第一行", "", "第三行"]
+    )
+
+
+def test_set_sign_without_any_line(core, real_mc):
+    core_module, _ = core
+    mc, connection = real_mc
+
+    core_module.MineCraftConn(mc).set_sign(1, 2, 3, 68, 2)
+
+    connection.send.assert_called_once_with(b"world.setSign", [1, 2, 3, 68, 2])
+
+
+def test_get_block_reads_single_block(core, real_mc):
+    """`get_block` 必须走 `world.getBlock`，而不是区域查询 `world.getBlocks`。"""
+    core_module, _ = core
+    mc, connection = real_mc
+    connection.sendReceive.return_value = "7"
+
+    assert core_module.MineCraftConn(mc).get_block(1, 2, 3) == 7
+    connection.sendReceive.assert_called_once_with(b"world.getBlock", [1, 2, 3])
+
+
+def test_get_blocks_returns_reusable_list(core, real_mc):
+    """`get_blocks` 返回 list，而不是只能遍历一次的 map 迭代器。"""
+    core_module, _ = core
+    mc, connection = real_mc
+    connection.sendReceive.return_value = "1,2,3"
+
+    blocks = core_module.MineCraftConn(mc).get_blocks(0, 0, 0, 1, 1, 1)
+
+    assert blocks == [1, 2, 3]
+    assert list(blocks) == [1, 2, 3]
 
 
 def test_minecraft_conn_propagates_delegate_errors(core, mock_mc):
