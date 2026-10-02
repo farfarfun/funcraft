@@ -40,7 +40,7 @@ River(pos=p, length=10, depth=3).build()
 
 ## 说明
 
-`example/` 目录下的脚本（如 `ply_test.py`、`core/example.py`）是作者本人的一次性实验代码，用于把点云文件（`.ply`）读进来并在 Minecraft 世界里用方块还原出来，代码里硬编码了作者本机的文件路径（如 `/Users/liangtaoniu/...`），不能直接运行，仅作为用法参考，目前也没有在维护。
+`example/` 目录下的 `ply_test.py` 是作者本人的一次性点云数据处理实验，未包含在发行包中，目前也没有维护。
 
 ---
 

@@ -273,8 +273,6 @@ class Cell:
     `_build()`，再递归建造所有子节点，最后向聊天频道播报建造成功。
     """
 
-    conn: MineCraftConn = MineCraftConn.create()
-
     def __init__(
         self,
         mc: Minecraft | None = None,
@@ -285,14 +283,12 @@ class Cell:
         """初始化建造单元。
 
         Args:
-            mc: 已建立的 `Minecraft` 连接；提供时会覆盖类级别共用的 `conn`。
+            mc: 已建立的 `Minecraft` 连接；为空时使用默认地址/端口新建连接。
             pos: 建造起始坐标。
             block: 使用的方块类型，默认木头。
             msg: 建造完成后播报到聊天频道的消息内容。
         """
-        if mc is not None:
-            Cell.conn = MineCraftConn(mc) or MineCraftConn.create()
-
+        self.conn = MineCraftConn(mc)
         self._children: list[Cell] = []
         self.pos = pos
         self.block = block

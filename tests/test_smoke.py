@@ -1,12 +1,4 @@
-"""funcraft.core 的测试：覆盖 MineCraftConn、Cell、Wall、Line、River 的正常路径与边界。
-
-背景说明：`funcraft.core.core` 在类体中执行
-`Cell.conn = MineCraftConn.create()`，首次 import 该模块就会尝试用真实
-socket 连接 `localhost:4711` 上的 Minecraft Pi 服务端；测试环境没有真实
-服务端。因此下面用 `unittest.mock.patch` 在 import 之前把
-`mcpi.minecraft.Minecraft.create` 换成返回 `MagicMock()` 的桩，避免真实
-网络连接，同时每次都重新 import 相关模块以保证桩生效。
-"""
+"""funcraft.core 的测试：覆盖连接代理和建筑单元的主要契约。"""
 
 import sys
 from unittest.mock import MagicMock, patch
@@ -14,8 +6,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
-def test_import():
-    import funcraft  # noqa: F401
+def test_core_import_does_not_create_connection():
+    for name in ("funcraft.core.things", "funcraft.core.core"):
+        sys.modules.pop(name, None)
+
+    with patch("mcpi.minecraft.Minecraft.create") as create:
+        import funcraft.core.core  # noqa: F401
+
+    create.assert_not_called()
 
 
 @pytest.fixture
@@ -26,11 +24,7 @@ def mock_mc():
 
 @pytest.fixture
 def core(mock_mc):
-    """在 `Minecraft.create` 被打桩的前提下（重新）导入 core/things 子模块。
-
-    打桩需要在整个测试用例执行期间保持生效（不只是 import 那一刻），
-    因为部分用例会在测试体内再次显式调用 `MineCraftConn.create()`。
-    """
+    """导入模块，并在测试期间阻止实例初始化连接真实服务端。"""
     for name in ("funcraft.core.things", "funcraft.core.core"):
         sys.modules.pop(name, None)
     with patch("mcpi.minecraft.Minecraft.create", return_value=mock_mc):
@@ -76,6 +70,51 @@ def test_mineCraftConn_get_player_entity_id(core, mock_mc):
     conn = core_module.MineCraftConn(mock_mc)
     assert conn.get_player_entity_id("niult") == 42
     mock_mc.getPlayerEntityId.assert_called_once_with("niult")
+
+
+@pytest.mark.parametrize(
+    ("method", "args", "mc_method", "expected"),
+    [
+        ("get_block", (1, 2, 3), "getBlocks", 1),
+        ("get_block_with_data", (1, 2, 3), "getBlockWithData", "block"),
+        ("get_blocks", (1, 2, 3, 4, 5, 6), "getBlocks", [1, 2]),
+        ("set_blocks", (1, 2, 3, 4, 5, 6, 7), "setBlocks", None),
+        ("set_sign", (1, 2, 3, 68, 2, "a", "b", None, None), "setSign", None),
+        ("spawn_entity", (1, 2, 3, 4), "spawnEntity", 9),
+        ("get_height", (1, 3), "getHeight", 8),
+        ("get_player_entity_ids", (), "getPlayerEntityIds", [7, 8]),
+        ("save_checkpoint", (), "saveCheckpoint", None),
+        ("restore_checkpoint", (), "restoreCheckpoint", None),
+        ("post_to_chat", ("hello",), "postToChat", None),
+        ("setting", ("world_immutable", True), "setting", None),
+        ("get_entity_types", (), "getEntityTypes", ["Player"]),
+        ("get_entities", (), "getEntities", []),
+        ("remove_entity", (7,), "removeEntity", 1),
+        ("remove_entities", (), "removeEntities", 2),
+    ],
+)
+def test_minecraft_conn_delegates(core, mock_mc, method, args, mc_method, expected):
+    core_module, _ = core
+    delegate = getattr(mock_mc, mc_method)
+    delegate.return_value = expected
+
+    result = getattr(core_module.MineCraftConn(mock_mc), method)(*args)
+
+    expected_args = args
+    if method == "set_sign":
+        expected_args = (*args[:5], list(args[5:]))
+    elif method in {"get_entities", "remove_entities"}:
+        expected_args = (-1,)
+    delegate.assert_called_once_with(*expected_args)
+    assert result == expected
+
+
+def test_minecraft_conn_propagates_delegate_errors(core, mock_mc):
+    core_module, _ = core
+    mock_mc.getHeight.side_effect = ConnectionError("server unavailable")
+
+    with pytest.raises(ConnectionError, match="server unavailable"):
+        core_module.MineCraftConn(mock_mc).get_height(1, 2)
 
 
 def test_cell_build_without_subclass_raises_domain_exception(core):
