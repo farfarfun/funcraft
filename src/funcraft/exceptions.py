@@ -12,7 +12,7 @@ class CellBuildNotImplementedError(FunCraftError, NotImplementedError):
     `Cell`（而不是 `Wall`/`Line`/`River` 等具体子类）时会触发该异常。
     """
 
-    def __init__(self, cell: object):
+    def __init__(self, cell: object) -> None:
         super().__init__(
             f"{type(cell).__name__} 未实现 _build()，无法执行 build()；"
             "请使用 Wall/Line/River 等具体子类，或自行实现 _build()。"

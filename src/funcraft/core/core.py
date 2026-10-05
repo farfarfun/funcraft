@@ -293,7 +293,7 @@ class Cell:
         pos: Vec3 | None = None,
         block: Block = mcpi.block.WOOD,
         msg: str = "cell",
-    ):
+    ) -> None:
         """初始化建造单元。
 
         Args:

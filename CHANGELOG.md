@@ -9,7 +9,7 @@
 - `funcraft/exceptions.py` 新增 `CellBuildNotImplementedError` 领域异常，替代 `Cell._build()` 中原来的通用 `Exception`。
 - `tests/test_smoke.py` 补充 `MineCraftConn`、`Cell`、`Wall`、`Line`、`River` 的正常路径与边界测试（使用打桩的 `mcpi.minecraft.Minecraft.create`，不依赖真实 Minecraft Pi 服务端）。
 - `tests/test_smoke.py` 另补一组「真实 `Minecraft` 对象 + 假 socket 连接」的回归测试，走 mcpi 真实的参数编排逻辑（`intFloor`/`flatten`/告示牌文字处理），覆盖只在真实调用时才暴露的传参缺陷。
-- 提交 `uv.lock`，保证依赖可复现构建。
+- 不提交 `uv.lock`；库项目由 `uv` 根据 `pyproject.toml` 解析依赖。
 
 ### 修复
 
