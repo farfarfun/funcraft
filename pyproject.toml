@@ -3,7 +3,7 @@ name = "funcraft"
 version = "0.0.3"
 description = "Minecraft Pi 版编程接口封装：基于 mcpi 连接游戏，提供方块读写、区域批量建造、告示牌等 API，并内置墙/线/河流等建筑构件"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "牛哥", email = "farfarfun@qq.com" }]
